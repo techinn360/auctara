@@ -1,0 +1,78 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: 'class',
+  content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        'on-surface-variant': '#bacbbf',
+        background: '#0d1511',
+        'surface-bright': '#323b36',
+        'on-surface': '#dbe5dd',
+        'surface-container-low': '#151d19',
+        'surface-dim': '#0d1511',
+        'surface-container': '#19211d',
+        primary: '#6effc0',
+        'inverse-primary': '#006c49',
+        'inverse-surface': '#dbe5dd',
+        secondary: '#b7ccbc',
+        'surface-tint': '#00e29e',
+        'outline-variant': '#3b4a41',
+        'on-primary-container': '#006141',
+        surface: '#0d1511',
+        'primary-container': '#00e5a0',
+        'surface-container-lowest': '#08100c',
+        'primary-fixed': '#47ffb8',
+        'surface-variant': '#2e3731',
+        'secondary-container': '#394b3f',
+        'on-secondary-container': '#a6baab',
+        'on-primary': '#003824',
+        'inverse-on-surface': '#2a322d',
+        tertiary: '#d7ead8',
+        'on-secondary': '#23342a',
+        'surface-container-high': '#232c27',
+        'surface-container-highest': '#2e3731',
+        'on-background': '#dbe5dd',
+        outline: '#84958a',
+        'primary-fixed-dim': '#00e29e',
+        error: '#ffb4ab',
+        'on-error': '#690005',
+      },
+      borderRadius: {
+        DEFAULT: '0.25rem',
+        lg: '0.5rem',
+        xl: '0.75rem',
+        full: '9999px',
+      },
+      spacing: {
+        gutter: '24px',
+        section: '96px',
+      },
+      maxWidth: {
+        'container-max': '1440px',
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+      },
+      fontSize: {
+        'headline-md': ['28px', { lineHeight: '1.3', fontWeight: '600' }],
+        display: ['56px', { lineHeight: '1.1', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'label-caps': ['11px', { lineHeight: '1', letterSpacing: '0.08em', fontWeight: '600' }],
+        'headline-lg': ['40px', { lineHeight: '1.2', letterSpacing: '-0.01em', fontWeight: '700' }],
+        'headline-sm': ['20px', { lineHeight: '1.4', fontWeight: '600' }],
+        'body-sm': ['13px', { lineHeight: '1.5', fontWeight: '400' }],
+        'body-lg': ['16px', { lineHeight: '1.6', fontWeight: '400' }],
+      },
+      keyframes: {
+        'pulse-subtle': {
+          '0%, 100%': { opacity: 1 },
+          '50%': { opacity: 0.7 },
+        },
+      },
+      animation: {
+        'pulse-subtle': 'pulse-subtle 3s infinite ease-in-out',
+      },
+    },
+  },
+  plugins: [],
+}
