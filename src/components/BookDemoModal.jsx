@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDemo } from '../context/DemoModalContext'
+import { supabase } from '../utils/supabase'
 
 const STEPS = ['You', 'Business', 'Schedule']
+const DEMO_REQUESTS_TABLE = 'demo_requests'
 
 // Set VITE_CALENDLY_URL in .env to override the default booking page.
 const CALENDLY_URL = import.meta.env.VITE_CALENDLY_URL || 'https://calendly.com/techinn360-com'
@@ -55,6 +57,7 @@ function CalendlyEmbed({ url, prefill, onScheduled }) {
 
   useEffect(() => {
     let cancelled = false
+    setStatus('loading')
     loadCalendlyScript()
       .then(() => {
         if (cancelled || !containerRef.current) return
@@ -68,8 +71,7 @@ function CalendlyEmbed({ url, prefill, onScheduled }) {
       })
       .catch(() => !cancelled && setStatus('error'))
     return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url])
+  }, [url, prefill])
 
   return (
     <div className="relative rounded-xl border border-[#3b4a41] overflow-hidden bg-[#151d19]">
@@ -118,16 +120,142 @@ export default function BookDemoModal() {
   const [step, setStep] = useState(0)
   const [dir, setDir] = useState(1)
   const [done, setDone] = useState(false)
+  const [leadId, setLeadId] = useState(null)
+  const [saveStatus, setSaveStatus] = useState('idle')
+  const [saveError, setSaveError] = useState('')
+  const [savedFingerprint, setSavedFingerprint] = useState('')
+  const [bookingSyncError, setBookingSyncError] = useState('')
+  const [emailSyncError, setEmailSyncError] = useState('')
 
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
     industry: '', company: '', volume: '',
   })
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
-  const pick = (key, val) => setForm((f) => ({ ...f, [key]: val }))
+  const set = (key) => (e) => {
+    setSaveError('')
+    setBookingSyncError('')
+    setEmailSyncError('')
+    setSaveStatus((status) => (status === 'error' ? 'idle' : status))
+    setForm((f) => ({ ...f, [key]: e.target.value }))
+  }
+  const pick = (key, val) => {
+    setSaveError('')
+    setBookingSyncError('')
+    setEmailSyncError('')
+    setSaveStatus((status) => (status === 'error' ? 'idle' : status))
+    setForm((f) => ({ ...f, [key]: val }))
+  }
+  const fullName = `${form.firstName} ${form.lastName}`.trim()
+  const submissionPayload = useMemo(
+    () => ({
+      first_name: form.firstName.trim(),
+      last_name: form.lastName.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      industry: form.industry,
+      company: form.company.trim(),
+      volume: form.volume,
+      source: 'book_demo_modal',
+    }),
+    [form.firstName, form.lastName, form.email, form.phone, form.industry, form.company, form.volume]
+  )
+  const submissionFingerprint = useMemo(
+    () => JSON.stringify(submissionPayload),
+    [submissionPayload]
+  )
+  const calendlyPrefill = useMemo(
+    () => ({
+      name: fullName,
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      email: form.email.trim(),
+      customAnswers: {
+        a1: form.phone.trim(),
+        a2: `Company: ${form.company} | Industry: ${form.industry} | Volume: ${form.volume}`,
+      },
+    }),
+    [fullName, form.firstName, form.lastName, form.email, form.phone, form.company, form.industry, form.volume]
+  )
 
-  function next() { setDir(1); setStep((s) => s + 1) }
+  async function saveLead() {
+    if (savedFingerprint === submissionFingerprint) return true
+
+    setSaveStatus('saving')
+    setSaveError('')
+
+    const { data, error } = await supabase
+      .from(DEMO_REQUESTS_TABLE)
+      .insert(submissionPayload)
+      .select('id')
+      .single()
+
+    if (error) {
+      setSaveStatus('error')
+      setSaveError("Couldn't save your details right now. Please try again.")
+      return false
+    }
+
+    setLeadId(data?.id ?? null)
+    setSavedFingerprint(submissionFingerprint)
+    setSaveStatus('saved')
+    return true
+  }
+
+  async function syncBookedMeeting(payload) {
+    if (!leadId) {
+      setBookingSyncError("Your booking is confirmed, but we couldn't sync it to our CRM record.")
+      return
+    }
+
+    const bookingUpdate = {
+      booking_status: 'scheduled',
+      calendly_booked_at: new Date().toISOString(),
+      calendly_event_uri: payload?.event?.uri ?? null,
+      calendly_invitee_uri: payload?.invitee?.uri ?? null,
+    }
+
+    const { error } = await supabase
+      .from(DEMO_REQUESTS_TABLE)
+      .update(bookingUpdate)
+      .eq('id', leadId)
+
+    if (error) {
+      setBookingSyncError("Your booking is confirmed, but we couldn't sync it to our CRM record.")
+    }
+  }
+
+  async function sendBookingNotification(payload) {
+    const { error } = await supabase.functions.invoke('send-demo-notification', {
+      body: {
+        leadId,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        company: form.company.trim(),
+        industry: form.industry,
+        volume: form.volume,
+        calendlyEventUri: payload?.event?.uri ?? null,
+        calendlyInviteeUri: payload?.invitee?.uri ?? null,
+      },
+    })
+
+    if (error) {
+      setEmailSyncError("Your booking is confirmed, but we couldn't send the internal notification email.")
+    }
+  }
+
+  async function next() {
+    if (step === 1) {
+      const saved = await saveLead()
+      if (!saved) return
+    }
+
+    setDir(1)
+    setStep((s) => s + 1)
+  }
+
   function back() { setDir(-1); setStep((s) => s - 1) }
 
   function canNext() {
@@ -138,6 +266,7 @@ export default function BookDemoModal() {
 
   function reset() {
     setStep(0); setDir(1); setDone(false)
+    setLeadId(null); setSaveStatus('idle'); setSaveError(''); setSavedFingerprint(''); setBookingSyncError(''); setEmailSyncError('')
     setForm({ firstName: '', lastName: '', email: '', phone: '', industry: '', company: '', volume: '' })
   }
 
@@ -248,6 +377,12 @@ export default function BookDemoModal() {
                       <p className="text-sm text-[#bacbbf] mb-8">
                         A calendar invite with the meeting link is on its way to <span className="text-[#6effc0]">{form.email}</span>
                       </p>
+                      {bookingSyncError && (
+                        <p className="text-sm text-[#ffb4ab] mb-6">{bookingSyncError}</p>
+                      )}
+                      {emailSyncError && (
+                        <p className="text-sm text-[#ffb4ab] mb-6">{emailSyncError}</p>
+                      )}
                       <div className="p-4 bg-[#151d19] rounded-xl border border-[#3b4a41] text-left mb-6">
                         <p className="text-[11px] font-semibold tracking-widest uppercase text-[#84958a] mb-3">What to expect</p>
                         {[
@@ -333,15 +468,14 @@ export default function BookDemoModal() {
                     <motion.div key="step2" custom={dir} variants={slideVariants} initial="enter" animate="center" exit="exit" className="space-y-4">
                       <CalendlyEmbed
                         url={`${CALENDLY_URL}?hide_gdpr_banner=1&background_color=151d19&text_color=dbe5dd&primary_color=00e5a0`}
-                        prefill={{
-                          name: `${form.firstName} ${form.lastName}`.trim(),
-                          email: form.email,
-                          customAnswers: {
-                            a1: form.phone,
-                            a2: `Company: ${form.company} | Industry: ${form.industry} | Volume: ${form.volume}`,
-                          },
+                        prefill={calendlyPrefill}
+                        onScheduled={async (payload) => {
+                          setDone(true)
+                          setBookingSyncError('')
+                          setEmailSyncError('')
+                          await syncBookedMeeting(payload)
+                          await sendBookingNotification(payload)
                         }}
-                        onScheduled={() => setDone(true)}
                       />
                       <div className="p-3 bg-[#151d19] rounded-lg border border-[#3b4a41] flex items-start gap-3">
                         <span className="material-symbols-outlined text-[#6effc0] text-base mt-0.5">info</span>
@@ -352,6 +486,10 @@ export default function BookDemoModal() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {saveError && step === 1 && (
+                  <p className="mt-4 text-sm text-[#ffb4ab]">{saveError}</p>
+                )}
 
                 {/* Footer nav */}
                 {!done && (
@@ -367,16 +505,16 @@ export default function BookDemoModal() {
                     {step < STEPS.length - 1 && (
                       <motion.button
                         onClick={next}
-                        disabled={!canNext()}
-                        whileHover={canNext() ? { scale: 0.97 } : {}}
-                        whileTap={canNext() ? { scale: 0.94 } : {}}
+                        disabled={!canNext() || saveStatus === 'saving'}
+                        whileHover={canNext() && saveStatus !== 'saving' ? { scale: 0.97 } : {}}
+                        whileTap={canNext() && saveStatus !== 'saving' ? { scale: 0.94 } : {}}
                         className={`flex-1 md:flex-none md:min-w-[140px] py-2.5 px-6 rounded-lg font-bold text-sm transition-all ${
-                          canNext()
+                          canNext() && saveStatus !== 'saving'
                             ? 'bg-[#00e5a0] text-[#003824] hover:bg-[#6effc0]'
                             : 'bg-[#1e2e22] text-[#3b4a41] cursor-not-allowed'
                         }`}
                       >
-                        Continue →
+                        {step === 1 && saveStatus === 'saving' ? 'Saving…' : 'Continue →'}
                       </motion.button>
                     )}
                   </div>
