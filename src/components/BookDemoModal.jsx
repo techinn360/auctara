@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDemo } from '../context/DemoModalContext'
 
 const STEPS = ['You', 'Business', 'Schedule']
+
+// Set VITE_CALENDLY_URL in .env to override the default booking page.
+const CALENDLY_URL = import.meta.env.VITE_CALENDLY_URL || 'https://calendly.com/techinn360-com'
 
 const industries = [
   { value: 'salvage', label: 'Salvage Car Auction', icon: 'minor_crash' },
@@ -20,7 +23,75 @@ const volumes = [
   { value: '200+', label: '200 + lots/mo' },
 ]
 
-const timeSlots = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00']
+let calendlyScriptPromise = null
+function loadCalendlyScript() {
+  if (window.Calendly) return Promise.resolve()
+  if (!calendlyScriptPromise) {
+    calendlyScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = 'https://assets.calendly.com/assets/external/widget.js'
+      script.async = true
+      script.onload = resolve
+      script.onerror = reject
+      document.head.appendChild(script)
+    })
+  }
+  return calendlyScriptPromise
+}
+
+function CalendlyEmbed({ url, prefill, onScheduled }) {
+  const containerRef = useRef(null)
+  const [status, setStatus] = useState('loading')
+
+  useEffect(() => {
+    function handleMessage(e) {
+      if (typeof e.origin === 'string' && e.origin.endsWith('calendly.com') && e.data?.event === 'calendly.event_scheduled') {
+        onScheduled(e.data.payload)
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [onScheduled])
+
+  useEffect(() => {
+    let cancelled = false
+    loadCalendlyScript()
+      .then(() => {
+        if (cancelled || !containerRef.current) return
+        containerRef.current.innerHTML = ''
+        window.Calendly.initInlineWidget({
+          url,
+          parentElement: containerRef.current,
+          prefill,
+        })
+        setStatus('ready')
+      })
+      .catch(() => !cancelled && setStatus('error'))
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url])
+
+  return (
+    <div className="relative rounded-xl border border-[#3b4a41] overflow-hidden bg-[#151d19]">
+      {status === 'loading' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-[#84958a]">
+          <span className="material-symbols-outlined animate-spin text-[#6effc0] text-3xl">progress_activity</span>
+          <p className="text-xs font-semibold tracking-widest uppercase">Loading calendar…</p>
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6">
+          <span className="material-symbols-outlined text-[#6effc0] text-3xl">wifi_off</span>
+          <p className="text-sm text-[#bacbbf]">
+            Couldn't load the calendar. Please check your connection, or email us at{' '}
+            <a href="mailto:demo@auctara.com" className="text-[#6effc0]">demo@auctara.com</a>
+          </p>
+        </div>
+      )}
+      <div ref={containerRef} style={{ height: 'min(620px, 62vh)', minHeight: 420 }} />
+    </div>
+  )
+}
 
 const slideVariants = {
   enter: (dir) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
@@ -51,7 +122,6 @@ export default function BookDemoModal() {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
     industry: '', company: '', volume: '',
-    date: '', time: '',
   })
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -63,17 +133,12 @@ export default function BookDemoModal() {
   function canNext() {
     if (step === 0) return form.firstName && form.lastName && form.email && form.phone
     if (step === 1) return form.industry && form.company && form.volume
-    if (step === 2) return form.date && form.time
     return true
-  }
-
-  function submit() {
-    setDone(true)
   }
 
   function reset() {
     setStep(0); setDir(1); setDone(false)
-    setForm({ firstName: '', lastName: '', email: '', phone: '', industry: '', company: '', volume: '', date: '', time: '' })
+    setForm({ firstName: '', lastName: '', email: '', phone: '', industry: '', company: '', volume: '' })
   }
 
   function handleClose() {
@@ -108,7 +173,7 @@ export default function BookDemoModal() {
             className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
           >
             <div
-              className="relative w-full max-w-lg pointer-events-auto rounded-2xl border border-[#3b4a41] overflow-hidden shadow-2xl"
+              className={`relative w-full ${step === 2 && !done ? 'max-w-2xl' : 'max-w-lg'} pointer-events-auto rounded-2xl border border-[#3b4a41] overflow-hidden shadow-2xl transition-all duration-300`}
               style={{ background: '#0d1511' }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -125,7 +190,7 @@ export default function BookDemoModal() {
                     {done ? 'All set!' : `Step ${step + 1} of ${STEPS.length}`}
                   </p>
                   <h2 className="text-xl font-bold text-[#dbe5dd] mt-0.5">
-                    {done ? 'Demo booked 🎉' : step === 0 ? 'Tell us about yourself' : step === 1 ? 'Your auction business' : 'Pick your time slot'}
+                    {done ? 'Demo booked 🎉' : step === 0 ? 'Tell us about yourself' : step === 1 ? 'Your auction business' : 'Pick a date & time'}
                   </h2>
                 </div>
                 <button
@@ -180,11 +245,8 @@ export default function BookDemoModal() {
                         <span className="material-symbols-outlined text-[#6effc0] text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                       </motion.div>
                       <h3 className="text-lg font-bold text-[#dbe5dd] mb-2">You're on the calendar, {form.firstName}!</h3>
-                      <p className="text-sm text-[#bacbbf] mb-2">
-                        We'll send a confirmation to <span className="text-[#6effc0]">{form.email}</span>
-                      </p>
                       <p className="text-sm text-[#bacbbf] mb-8">
-                        Your demo is scheduled for <span className="text-[#dbe5dd] font-semibold">{form.date}</span> at <span className="text-[#dbe5dd] font-semibold">{form.time}</span>
+                        A calendar invite with the meeting link is on its way to <span className="text-[#6effc0]">{form.email}</span>
                       </p>
                       <div className="p-4 bg-[#151d19] rounded-xl border border-[#3b4a41] text-left mb-6">
                         <p className="text-[11px] font-semibold tracking-widest uppercase text-[#84958a] mb-3">What to expect</p>
@@ -269,37 +331,22 @@ export default function BookDemoModal() {
                     </motion.div>
                   ) : (
                     <motion.div key="step2" custom={dir} variants={slideVariants} initial="enter" animate="center" exit="exit" className="space-y-4">
-                      <Field label="Preferred date">
-                        <input
-                          className={inputCls}
-                          type="date"
-                          min={new Date().toISOString().split('T')[0]}
-                          value={form.date}
-                          onChange={set('date')}
-                          style={{ colorScheme: 'dark' }}
-                        />
-                      </Field>
-                      <Field label="Preferred time (Gulf Standard Time — UTC+4)">
-                        <div className="grid grid-cols-4 gap-2">
-                          {timeSlots.map((t) => (
-                            <button
-                              key={t}
-                              onClick={() => pick('time', t)}
-                              className={`py-2.5 rounded-lg border text-xs font-semibold transition-all ${
-                                form.time === t
-                                  ? 'border-[#6effc0] bg-[#6effc0]/10 text-[#6effc0]'
-                                  : 'border-[#3b4a41] bg-[#151d19] text-[#bacbbf] hover:border-[#6effc0]/40'
-                              }`}
-                            >
-                              {t}
-                            </button>
-                          ))}
-                        </div>
-                      </Field>
+                      <CalendlyEmbed
+                        url={`${CALENDLY_URL}?hide_gdpr_banner=1&background_color=151d19&text_color=dbe5dd&primary_color=00e5a0`}
+                        prefill={{
+                          name: `${form.firstName} ${form.lastName}`.trim(),
+                          email: form.email,
+                          customAnswers: {
+                            a1: form.phone,
+                            a2: `Company: ${form.company} | Industry: ${form.industry} | Volume: ${form.volume}`,
+                          },
+                        }}
+                        onScheduled={() => setDone(true)}
+                      />
                       <div className="p-3 bg-[#151d19] rounded-lg border border-[#3b4a41] flex items-start gap-3">
                         <span className="material-symbols-outlined text-[#6effc0] text-base mt-0.5">info</span>
                         <p className="text-[12px] text-[#bacbbf] leading-relaxed">
-                          A 30-minute demo call will be scheduled. You'll receive a calendar invite and Zoom link by email.
+                          Pick any open slot — you'll receive a calendar invite and meeting link by email as soon as you confirm.
                         </p>
                       </div>
                     </motion.div>
@@ -317,19 +364,21 @@ export default function BookDemoModal() {
                         ← Back
                       </button>
                     )}
-                    <motion.button
-                      onClick={step === STEPS.length - 1 ? submit : next}
-                      disabled={!canNext()}
-                      whileHover={canNext() ? { scale: 0.97 } : {}}
-                      whileTap={canNext() ? { scale: 0.94 } : {}}
-                      className={`flex-1 md:flex-none md:min-w-[140px] py-2.5 px-6 rounded-lg font-bold text-sm transition-all ${
-                        canNext()
-                          ? 'bg-[#00e5a0] text-[#003824] hover:bg-[#6effc0]'
-                          : 'bg-[#1e2e22] text-[#3b4a41] cursor-not-allowed'
-                      }`}
-                    >
-                      {step === STEPS.length - 1 ? 'Confirm booking →' : 'Continue →'}
-                    </motion.button>
+                    {step < STEPS.length - 1 && (
+                      <motion.button
+                        onClick={next}
+                        disabled={!canNext()}
+                        whileHover={canNext() ? { scale: 0.97 } : {}}
+                        whileTap={canNext() ? { scale: 0.94 } : {}}
+                        className={`flex-1 md:flex-none md:min-w-[140px] py-2.5 px-6 rounded-lg font-bold text-sm transition-all ${
+                          canNext()
+                            ? 'bg-[#00e5a0] text-[#003824] hover:bg-[#6effc0]'
+                            : 'bg-[#1e2e22] text-[#3b4a41] cursor-not-allowed'
+                        }`}
+                      >
+                        Continue →
+                      </motion.button>
+                    )}
                   </div>
                 )}
               </div>

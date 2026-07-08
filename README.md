@@ -1,16 +1,34 @@
-# React + Vite
+# Auctara
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Auctara is a React + Vite marketing site for a white-label auction platform. It includes a multi-step "Book a demo" popup with an embedded Calendly scheduler on the final step.
 
-Currently, two official plugins are available:
+## Local Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Install dependencies:
 
-## React Compiler
+```bash
+npm install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. Create a `.env.local` file in the project root:
 
-## Expanding the ESLint configuration
+```env
+VITE_CALENDLY_URL=https://calendly.com/techinn360-com
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+3. Start the development server:
+
+```bash
+npm run dev
+```
+
+## Environment Variables
+
+- `VITE_CALENDLY_URL`: Calendly page embedded in the final step of the `Book a demo` modal.
+
+## Available Scripts
+
+- `npm run dev`: Starts the Vite dev server
+- `npm run build`: Builds the project for production
+- `npm run lint`: Runs ESLint
+- `npm run preview`: Previews the production build locally
