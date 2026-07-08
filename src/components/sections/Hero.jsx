@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { useState } from 'react'
+import { useDemo } from '../../context/DemoModalContext'
 
 const auctionTypes = [
   { icon: 'directions_car', label: 'Vehicle' },
@@ -20,6 +21,7 @@ const itemVariants = {
 
 export default function Hero() {
   const [selected, setSelected] = useState(null)
+  const { openModal } = useDemo()
 
   return (
     <section className="relative px-6 pt-8 pb-16 lg:py-24 max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
@@ -55,6 +57,7 @@ export default function Hero() {
 
         <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4">
           <motion.button
+            onClick={openModal}
             whileHover={{ scale: 0.97 }}
             whileTap={{ scale: 0.93 }}
             className="bg-[#00e5a0] text-[#003824] px-8 py-4 rounded-lg font-bold text-base md:text-lg flex items-center justify-center gap-2"

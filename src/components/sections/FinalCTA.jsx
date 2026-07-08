@@ -1,9 +1,11 @@
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
+import { useDemo } from '../../context/DemoModalContext'
 
 export default function FinalCTA() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
+  const { openModal } = useDemo()
 
   return (
     <section
@@ -27,6 +29,7 @@ export default function FinalCTA() {
           transition={{ duration: 0.5, delay: 0.15 }}
         >
           <motion.button
+            onClick={openModal}
             whileHover={{ scale: 0.97 }}
             whileTap={{ scale: 0.93 }}
             className="w-full sm:w-auto bg-[#00e5a0] text-[#003824] px-10 py-4 rounded-lg font-bold text-lg"

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
+import { useDemo } from '../../context/DemoModalContext'
 
 const steps = [
   {
@@ -36,6 +37,7 @@ const slideVariants = {
 }
 
 export default function Assessment() {
+  const { openModal } = useDemo()
   const [step, setStep] = useState(0)
   const [done, setDone] = useState(false)
   const ref = useRef(null)
@@ -168,6 +170,7 @@ export default function Assessment() {
                     <motion.button
                       whileHover={{ scale: 0.97 }}
                       whileTap={{ scale: 0.93 }}
+                      onClick={openModal}
                       className="bg-[#00e5a0] text-[#003824] px-6 py-3 rounded-lg font-bold flex-1 text-sm md:text-base"
                     >
                       Book a demo
