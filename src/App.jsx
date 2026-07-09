@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import Hero from './components/sections/Hero'
 import ProofStrip from './components/sections/ProofStrip'
@@ -30,16 +31,29 @@ function Home() {
   )
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [pathname])
+
+  return null
+}
+
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/case-studies/salvage-cars" element={<SalvageCars />} />
-      <Route path="/case-studies/luxury-auction" element={<LuxuryAuction />} />
-      <Route path="/case-studies/alqaryah-auction" element={<AlqaryahAuction />} />
-      <Route path="/admin" element={<AdminBookings />} />
-      <Route path="/hamed" element={<Hamed />} />
-      <Route path="/hamednew" element={<HamedNew />} />
-    </Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/case-studies/salvage-cars" element={<SalvageCars />} />
+        <Route path="/case-studies/luxury-auction" element={<LuxuryAuction />} />
+        <Route path="/case-studies/alqaryah-auction" element={<AlqaryahAuction />} />
+        <Route path="/admin" element={<AdminBookings />} />
+        <Route path="/hamed" element={<Hamed />} />
+        <Route path="/hamednew" element={<HamedNew />} />
+      </Routes>
+    </>
   )
 }
