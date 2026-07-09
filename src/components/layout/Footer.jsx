@@ -1,12 +1,21 @@
 import { motion } from 'framer-motion'
 import { useRef } from 'react'
 import { useInView } from 'framer-motion'
+import { Link } from 'react-router-dom'
 
 const footerCols = [
   { title: 'Product', links: ['Platform', 'Bidding Engine', 'Inventory', 'Mobile App'] },
   { title: 'Company', links: ['About Us', 'Case Studies', 'Careers'] },
   { title: 'Enterprise', links: ['Solutions', 'Security', 'Uptime API'] },
   { title: 'Legal', links: ['Privacy Policy', 'Terms of Service'] },
+  {
+    title: 'Options',
+    links: [
+      { label: 'Option 1', href: '/hamed' },
+      { label: 'Option 2', href: '/hamednew' },
+      { label: 'Option 3', href: '/' },
+    ],
+  },
 ]
 
 export default function Footer() {
@@ -33,7 +42,7 @@ export default function Footer() {
         </motion.div>
 
         {/* Link columns */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-0 md:mt-10 border-t border-[#3b4a41] pt-10">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mt-0 md:mt-10 border-t border-[#3b4a41] pt-10">
           {footerCols.map((col, i) => (
             <motion.div
               key={col.title}
@@ -44,10 +53,16 @@ export default function Footer() {
               <h4 className="font-bold mb-4 text-[#dbe5dd] text-sm md:text-base">{col.title}</h4>
               <ul className="space-y-3 text-sm text-[#bacbbf]">
                 {col.links.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="hover:text-[#dbe5dd] transition-colors">
-                      {link}
-                    </a>
+                  <li key={typeof link === 'string' ? link : link.label}>
+                    {typeof link === 'string' ? (
+                      <a href="#" className="hover:text-[#dbe5dd] transition-colors">
+                        {link}
+                      </a>
+                    ) : (
+                      <Link to={link.href} className="hover:text-[#dbe5dd] transition-colors">
+                        {link.label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

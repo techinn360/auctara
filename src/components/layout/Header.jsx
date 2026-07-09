@@ -37,9 +37,9 @@ export default function Header() {
         <div className="flex md:grid md:grid-cols-3 items-center justify-between px-6 py-4 max-w-[1440px] mx-auto">
           {/* Logo — left */}
           <div>
-            <a href="#" className="text-[#6effc0] font-bold text-xl tracking-tight">
+            <Link to="/" className="text-[#6effc0] font-bold text-xl tracking-tight">
               Auctara
-            </a>
+            </Link>
           </div>
 
           {/* Nav — center (desktop only) */}
